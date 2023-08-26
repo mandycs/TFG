@@ -76,7 +76,8 @@ def level_1(protagonist, enemy):
     success = check_tense(input_text,form_nlp_result,verb_result)
     if success == True:
         protagonist.attack(enemy)
-        print(f"You have attacked the enemy with {verb_result} in {form_result}")
+    else:
+        protagonist.take_damage(enemy.atk)
     """print("You have completed Level 1!")"""
 
 # Define more levels and enemies for each level
