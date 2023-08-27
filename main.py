@@ -23,6 +23,8 @@ prompt_second_rounds = ""
 
 global_protagonist = None
 
+global_protagonist_name = None
+
 global_enemy = None
 
 global_verb_chosen = None
@@ -58,7 +60,32 @@ def api_gpt_call(prompt):
         return response.json()["choices"][0]["text"]
     else:
         return "Error: Failed to call GPT API"
+class Game:
+    def __init__(self):
+        self.streak = 0
+        self.achievements = {
+            5: False,
+            10: False,
+            20: False
+        }
 
+    def increase_streak(self):
+        self.streak += 1
+        self.check_achievements()
+
+    def reset_streak(self):
+        self.streak = 0
+
+    def check_achievements(self):
+        if self.streak >= 5 and not self.achievements[5]:
+            print("Achievement unlocked: 5-streak!")
+            self.achievements[5] = True
+        if self.streak >= 10 and not self.achievements[10]:
+            print("Achievement unlocked: 10-streak!")
+            self.achievements[10] = True
+        if self.streak >= 20 and not self.achievements[20]:
+            print("Achievement unlocked: 20-streak!")
+            self.achievements[20] = True
 class Character:
     def __init__(self, name, hp, atk):
         self.name = name
@@ -83,10 +110,12 @@ def combat(success):
     global global_protagonist
     global global_enemy
     if success == True:
+        Game.increase_streak()
         global_protagonist.attack(global_enemy)
         global_enemy.take_damage(global_protagonist.atk)
         """Añadir un output de cuanto daño ha hecho al enemigo y cuanto le queda de vida al enemigo"""
     else:
+        Game.reset_streak()
         global_enemy.attack(global_protagonist)
         global_protagonist.take_damage(global_enemy.atk)
         """Añadir un output de cuanto daño ha hecho al protagonista y cuanto le queda de vida al protagonista"""
@@ -108,15 +137,15 @@ def check_tense(input_text):
 
 def level_1():
     global_enemy = Enemy(1)
-    verb_result,form_result,form_nlp_result = choose_tense_and_verb()
-    print(api_gpt_call(prompt_first_round,verb_result,form_result))
+    choose_tense_and_verb()
+    print(api_gpt_call(prompt_first_round))
     input_text = input("Enter your phrase: ")
-    success = check_tense(input_text,form_nlp_result,verb_result)
+    success = check_tense(input_text)
     combat(success)
     while global_enemy.hp > 0 and global_protagonist.hp > 0:
-        print(api_gpt_call(prompt_second_rounds,verb_result,form_result))
+        print(api_gpt_call(prompt_second_rounds))
         input_text = input("Enter your phrase: ")
-        success = check_tense(input_text,form_nlp_result,verb_result)
+        success = check_tense(input_text)
         combat(success)
     if global_enemy.hp == 0:
         print("You defeated the enemy")
@@ -124,8 +153,9 @@ def level_1():
         print("You lost the battle")
 
 def main():
-    protagonist_name = input("Enter the name of your protagonist: ")
-    global_protagonist = Protagonist(protagonist_name)
+    game = Game()
+    global_protagonist_name = input("Enter the name of your protagonist: ")
+    global_protagonist = Protagonist(global_protagonist_name)
     level_1()
 
 if __name__ == "__main__":
