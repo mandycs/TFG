@@ -39,13 +39,6 @@ def game_instructions():
     print("You will have to use the correct modal verb to defeat the enemy\nIf you use the wrong modal verb, you will lose your turn")
     print("You will have 100HP and the enemy will have HP according to the difficulty level")
 
-def choose_tense_and_verb():
-    global global_form_chosen
-    global global_chosen_form_nlp
-    global global_verb_chosen
-    global_verb_chosen = random.choice(verbs_most_used)
-    global_chosen_form_nlp = random.choice(list(verbal_forms.keys()))
-    global_form_chosen = verbal_forms[global_chosen_form_nlp]
 
 def api_gpt_call(prompt):
     data = {
@@ -64,6 +57,7 @@ class Game:
     def __init__(self):
         self.streak = 0
         self.achievements = {
+            1: False,
             5: False,
             10: False,
             20: False
@@ -77,6 +71,8 @@ class Game:
         self.streak = 0
 
     def check_achievements(self):
+        if self.streak >= 1 and not self.achievements[1]:
+            print("Achievement unlocked: Congratulations!!! You have casted your first spell!")
         if self.streak >= 5 and not self.achievements[5]:
             print("Achievement unlocked: 5-streak!")
             self.achievements[5] = True
@@ -120,43 +116,55 @@ def combat(success):
         global_protagonist.take_damage(global_enemy.atk)
         """Añadir un output de cuanto daño ha hecho al protagonista y cuanto le queda de vida al protagonista"""
         
-def check_tense(input_text):
-    global global_verb_chosen
-    global global_form_chosen_nlp
-    doc = nlp(input_text)
-    for token in doc:
-        if token.lemma_ == global_verb_chosen:
-            if token.tag_ == global_form_chosen_nlp:
-                return True
-            else:
-                print("You used the wrong tense")
-                return False
-        else:
-            print("You used the wrong verb")
-            return False
 
-def level_1():
-    global_enemy = Enemy(1)
-    choose_tense_and_verb()
-    print(api_gpt_call(prompt_first_round))
-    input_text = input("Enter your phrase: ")
-    success = check_tense(input_text)
-    combat(success)
-    while global_enemy.hp > 0 and global_protagonist.hp > 0:
-        print(api_gpt_call(prompt_second_rounds))
+
+class Level:
+    def __init__(self, enemy_difficulty):
+        self.enemy = Enemy(enemy_difficulty)
+        self.choose_tense_and_verb()
+    global global_form_chosen
+    global global_chosen_form_nlp
+    global global_verb_chosen
+    def choose_tense_and_verb():
+        global_verb_chosen = random.choice(verbs_most_used)
+        global_chosen_form_nlp = random.choice(list(verbal_forms.keys()))
+        global_form_chosen = verbal_forms[global_chosen_form_nlp]
+
+    def play(self):
+        print(api_gpt_call(prompt_first_round))
         input_text = input("Enter your phrase: ")
-        success = check_tense(input_text)
+        success = self.check_tense(input_text)
         combat(success)
-    if global_enemy.hp == 0:
-        print("You defeated the enemy")
-    else:
-        print("You lost the battle")
+        
+        while self.enemy.hp > 0 and self.protagonist.hp > 0:
+            print(api_gpt_call(prompt_second_rounds))
+            input_text = input("Enter your phrase: ")
+            success = self.check_tense(input_text)
+            combat(success)
+        if self.enemy.hp == 0:
+            print("You defeated the enemy")
+        else:
+            print("You lost the battle")
+    def check_tense(input_text):
+        doc = nlp(input_text)
+        for token in doc:
+            if token.lemma_ == global_verb_chosen:
+                if token.tag_ == global_chosen_form_nlp:
+                    return True
+                else:
+                    print("You used the wrong tense")
+                    return False
+            else:
+                print("You used the wrong verb")
+                return False
 
 def main():
     game = Game()
     global_protagonist_name = input("Enter the name of your protagonist: ")
     global_protagonist = Protagonist(global_protagonist_name)
-    level_1()
+    for level_number in range(1, 11):
+        level = Level(level_number)
+        level.play()
 
 if __name__ == "__main__":
     main()
