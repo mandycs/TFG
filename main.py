@@ -19,9 +19,17 @@ verbs_most_used = ["be","have","do","make","use","say","get","go","take","see","
 
 prompt_first_round = ""
 
+prompt_second_rounds = ""
+
 global_protagonist = None
 
 global_enemy = None
+
+global_verb_chosen = None
+
+global_form_chosen = None
+
+global_chosen_form_nlp = None
 
 def game_instructions():
     print("Welcome to the Legend of the Verbs!\nIn this game, you will control a protagonist and engage in battles with enemies")
@@ -30,12 +38,14 @@ def game_instructions():
     print("You will have 100HP and the enemy will have HP according to the difficulty level")
 
 def choose_tense_and_verb():
-    verb_chosen = random.choice(verbs_most_used)
-    form_chosen_nlp = random.choice(list(verbal_forms.keys()))
-    form_chosen = verbal_forms[form_chosen_nlp]
-    return verb_chosen, form_chosen,form_chosen_nlp
+    global global_form_chosen
+    global global_chosen_form_nlp
+    global global_verb_chosen
+    global_verb_chosen = random.choice(verbs_most_used)
+    global_chosen_form_nlp = random.choice(list(verbal_forms.keys()))
+    global_form_chosen = verbal_forms[global_chosen_form_nlp]
 
-def api_gpt_call(prompt, verb_chosen, form_chosen):
+def api_gpt_call(prompt):
     data = {
     "prompt": prompt,
     "max_tokens": 100
@@ -75,15 +85,19 @@ def combat(success):
     if success == True:
         global_protagonist.attack(global_enemy)
         global_enemy.take_damage(global_protagonist.atk)
+        """Añadir un output de cuanto daño ha hecho al enemigo y cuanto le queda de vida al enemigo"""
     else:
         global_enemy.attack(global_protagonist)
         global_protagonist.take_damage(global_enemy.atk)
+        """Añadir un output de cuanto daño ha hecho al protagonista y cuanto le queda de vida al protagonista"""
         
-def check_tense(input_text,form_chosen_nlp,verb_chosen):
+def check_tense(input_text):
+    global global_verb_chosen
+    global global_form_chosen_nlp
     doc = nlp(input_text)
     for token in doc:
-        if token.lemma_ == verb_chosen:
-            if token.tag_ == form_chosen_nlp:
+        if token.lemma_ == global_verb_chosen:
+            if token.tag_ == global_form_chosen_nlp:
                 return True
             else:
                 print("You used the wrong tense")
@@ -99,6 +113,15 @@ def level_1():
     input_text = input("Enter your phrase: ")
     success = check_tense(input_text,form_nlp_result,verb_result)
     combat(success)
+    while global_enemy.hp > 0 and global_protagonist.hp > 0:
+        print(api_gpt_call(prompt_second_rounds,verb_result,form_result))
+        input_text = input("Enter your phrase: ")
+        success = check_tense(input_text,form_nlp_result,verb_result)
+        combat(success)
+    if global_enemy.hp == 0:
+        print("You defeated the enemy")
+    else:
+        print("You lost the battle")
 
 def main():
     protagonist_name = input("Enter the name of your protagonist: ")
