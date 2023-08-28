@@ -113,6 +113,27 @@ def combat(success,protagonist,enemy):
         """Añadir un output de cuanto daño ha hecho al protagonista y cuanto le queda de vida al protagonista"""
         
 
+class TextAnalyzer:
+    def __init__(self):
+        self.nlp = spacy.load("en_core_web_lg")
+    
+    def check_tense(self,input_text, verb_chosen, chosen_form_nlp):
+        doc = self.nlp(input_text)
+        for token in doc:
+            if token.lemma_ == verb_chosen:
+                if token.tag_ == chosen_form_nlp:
+                    return True
+                else:
+                    print("You used the wrong tense")
+                    return False
+            else:
+                print("You used the wrong verb")
+                return False
+    
+    def compare_similarity(self, gpt_phrase, input_text):
+        doc1 = self.nlp(gpt_phrase)
+        doc2 = self.nlp(input_text)
+        return doc1.similarity(doc2)
 
 class Level:
     def __init__(self,protagonist,enemy_difficulty):
@@ -127,31 +148,18 @@ class Level:
     def play(self):
         print(api_gpt_call(prompt_first_round))
         input_text = input("Enter your phrase: ")
-        success = self.check_tense(input_text)
+        success = self.check_tense(TextAnalyzer,input_text,self.verb_chosen,self.chosen_form_nlp)
         combat(success,self.protagonist,self.enemy)
         
         while self.enemy.hp > 0 and self.protagonist.hp > 0:
             print(api_gpt_call(prompt_second_rounds))
             input_text = input("Enter your phrase: ")
-            success = self.check_tense(input_text)
+            success = TextAnalyzer.check_tense(input_text,self.verb_chosen,self.chosen_form_nlp)
             combat(success,self.protagonist,self.enemy)
         if self.enemy.hp == 0:
             print("You defeated the enemy")
         else:
             print("You lost the battle")
-    def check_tense(self,input_text):
-        doc = nlp(input_text)
-        for token in doc:
-            if token.lemma_ == self.verb_chosen:
-                if token.tag_ == self.chosen_form_nlp:
-                    return True
-                else:
-                    print("You used the wrong tense")
-                    return False
-            else:
-                print("You used the wrong verb")
-                return False
-
 def main():
     Achievements()
     protagonist_name = input("Enter your name: ")
