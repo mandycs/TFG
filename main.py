@@ -11,8 +11,6 @@ headers = {
     "Authorization": f"Bearer {api_key}"
 }
 
-nlp = spacy.load("en_core_web_lg")
-
 verbal_forms = {"VBG":"Present continous","VBN":"Past participle","VBD":"Past simple","VB":"Base form","VBZ":"Present simple(3rd Person)","VBP":"Present simple","VH":"Future","VHD":"Past perfect","VHN":"Past Participle","VHP":"Present Perfect","VHZ":"Present Perfect(3rd person)","VVN":"Past Participle"}
 
 verbs_most_used = ["be","have","do","make","use","say","get","go","take","see","know","include","come","find","give","think","work","need","look","want","provide","help","become","start","follow","show","call","try","create","keep","leave","write","tell","play","add","feel","run","read","allow","put","mean","seem","lead","set","offer","ask","bring","hold","build","require","continue","learn","live","move","begin","like","receive","let","support","develop","consider","change","base","turn","pay","believe","meet","love","increase","happen","grow","serve","send","understand","remain","hear","lose","appear","accord","buy","win","expect","involve","produce","choose","speak","cause","improve","open","apply","talk","report","spend","join","sell","cover","enjoy","pass","reduce","stop","die"]
@@ -41,6 +39,7 @@ def api_gpt_call(prompt):
         return response.json()["choices"][0]["text"]
     else:
         return "Error: Failed to call GPT API"
+
 class Achievements:
     def __init__(self):
         self.streak = 0
@@ -160,6 +159,7 @@ class Level:
             print("You defeated the enemy")
         else:
             print("You lost the battle")
+
 def main():
     Achievements()
     protagonist_name = input("Enter your name: ")
