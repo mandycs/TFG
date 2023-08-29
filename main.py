@@ -11,7 +11,7 @@ headers = {
     "Authorization": f"Bearer {api_key}"
 }
 
-verbal_forms = {"VBG":"Present continous","VBN":"Past participle","VBD":"Past simple","VB":"Base form","VBZ":"Present simple(3rd Person)","VBP":"Present simple","VH":"Future","VHD":"Past perfect","VHN":"Past Participle","VHP":"Present Perfect","VHZ":"Present Perfect(3rd person)","VVN":"Past Participle"}
+verbal_forms = {"VBG":"Present continous","VBN":"Past participle","VBD":"Past simple","VBZ":"Present simple(3rd Person)","VBP":"Present simple","VH":"Future","VHD":"Past perfect","VHN":"Past Participle","VHP":"Present Perfect","VHZ":"Present Perfect(3rd person)","VVN":"Past Participle"}
 
 verbs_most_used = ["be","have","do","make","use","say","get","go","take","see","know","include","come","find","give","think","work","need","look","want","provide","help","become","start","follow","show","call","try","create","keep","leave","write","tell","play","add","feel","run","read","allow","put","mean","seem","lead","set","offer","ask","bring","hold","build","require","continue","learn","live","move","begin","like","receive","let","support","develop","consider","change","base","turn","pay","believe","meet","love","increase","happen","grow","serve","send","understand","remain","hear","lose","appear","accord","buy","win","expect","involve","produce","choose","speak","cause","improve","open","apply","talk","report","spend","join","sell","cover","enjoy","pass","reduce","stop","die"]
 
@@ -41,8 +41,10 @@ def api_gpt_call(prompt):
         return "Error: Failed to call GPT API"
 
 class Achievements:
-    def __init__(self):
+    def __init__(self,protagonist):
         self.streak = 0
+        self.level = 1
+        self.protagonist = protagonist
         self.achievements = {
             1: False,
             5: False,
@@ -51,11 +53,11 @@ class Achievements:
         }
 
     def check_level(self):
-        if self.level == 2 and Character.Protagonist.hp == 100:
+        if self.level == 2 and self.protagonist.hp == 100:
             print("Congratulations!!! You have reached level 2 without taking any damage!")
-        elif self.level == 4 and Character.Protagonist.hp >= 50:
+        elif self.level == 4 and self.protagonist.hp >= 50:
             print("Congratulations!!! You have reached level 4 with at least 50HP!")
-        elif self.level == 6 and Character.Protagonist.hp == 100:
+        elif self.level == 6 and self.protagonist.hp == 100:
             print("Congratulations!!! You are a beast!!! You have reached level 6 without taking any damage!")
     def increase_level(self):
         self.level += 1
@@ -105,39 +107,58 @@ def combat(success,protagonist,enemy):
     if success == True:
         Achievements.increase_streak()
         protagonist.attack(enemy)
-        """Añadir un output de cuanto daño ha hecho al enemigo y cuanto le queda de vida al enemigo"""
+        print("Your cast was successful!, you dealt damage to the enemy his hp is now: ", enemy.hp)
     else:
         Achievements.reset_streak()
         enemy.attack(protagonist)
-        """Añadir un output de cuanto daño ha hecho al protagonista y cuanto le queda de vida al protagonista"""
+        print("Your cast was unsuccessful!, the enemy dealt damage to you, your hp is now: ", protagonist.hp)
         
 
 class TextAnalyzer:
     def __init__(self):
         self.nlp = spacy.load("en_core_web_lg")
     
-    def check_tense(self,input_text, verb_chosen, chosen_form_nlp):
-        doc = self.nlp(input_text)
-        for token in doc:
-            if token.lemma_ == verb_chosen:
-                if token.tag_ == chosen_form_nlp:
-                    return True
-                else:
-                    print("You used the wrong tense")
-                    return False
-            else:
-                print("You used the wrong verb")
-                return False
+    def remove_auxiliary(self, doc):
+        filtered_tokens = [token for token in doc if token.dep_ not in ["aux", "auxpass"]]
+        return self.nlp(" ".join([token.text for token in filtered_tokens]))
     
-    def compare_similarity(self, gpt_phrase, input_text):
-        doc1 = self.nlp(gpt_phrase)
-        doc2 = self.nlp(input_text)
-        return doc1.similarity(doc2)
+    def compare_similarity(self, doc, doc2):
+        filtered_doc2 = self.remove_auxiliary(doc2)
+        filtered_doc = self.remove_auxiliary(doc)
+        for token1, token2 in zip(filtered_doc, filtered_doc2):
+            if token1.pos_ != "VERB" and token2.pos_ != "VERB":
+                token_similarity = token1.similarity(token2)
+                if token_similarity <= 0.98:
+                    return False
+        return True
+    
+    def check_tense(self, verb_chosen, chosen_form_nlp, input_text, original_phrase):
+        doc = self.nlp(input_text)
+        doc2 = self.nlp(original_phrase)
+        if self.compare_similarity(doc, doc2):
+            for token in doc:
+                if token.pos_ == "VERB":
+                    if token.lemma_ == verb_chosen and token.tag_ == chosen_form_nlp:
+                        return True
+                    elif token.lemma_ != verb_chosen:
+                        print("You used the wrong verb")
+                        return False
+                    else:
+                        print("You used the wrong tense")
+                        return False
+        else:
+            print("You used some different words")
+            return False
+    
+    def find_original_phrase(self, gpt_msg):
+        doc = self.nlp(gpt_msg)
+        #localizar la frase original que ha generado gpt para que el jugador la reformmule
 
 class Level:
-    def __init__(self,protagonist,enemy_difficulty):
+    def __init__(self,protagonist,enemy_difficulty,text_analyzer):
         self.enemy = Enemy(enemy_difficulty)
         self.protagonist = protagonist
+        self.text_analyzer = text_analyzer
         self.choose_tense_and_verb()
     def choose_tense_and_verb(self):
         self.verb_chosen = random.choice(verbs_most_used)
@@ -145,15 +166,18 @@ class Level:
         self.form_chosen = verbal_forms[self.chosen_form_nlp]
 
     def play(self):
-        print(api_gpt_call(prompt_first_round))
+        gpt_msg = api_gpt_call(prompt_first_round)
+        print(gpt_msg)
+        original_phrase = self.text_analyzer.find_original_phrase(gpt_msg)
         input_text = input("Enter your phrase: ")
-        success = self.check_tense(TextAnalyzer,input_text,self.verb_chosen,self.chosen_form_nlp)
+        success = self.text_analyzer.check_tense(TextAnalyzer,input_text,self.verb_chosen,self.chosen_form_nlp,original_phrase)
         combat(success,self.protagonist,self.enemy)
         
         while self.enemy.hp > 0 and self.protagonist.hp > 0:
-            print(api_gpt_call(prompt_second_rounds))
+            gpt_msg = api_gpt_call(prompt_second_rounds)
             input_text = input("Enter your phrase: ")
-            success = TextAnalyzer.check_tense(input_text,self.verb_chosen,self.chosen_form_nlp)
+            original_phrase = self.text_analyzer.find_original_phrase(gpt_msg)
+            success = self.text_analyzer.check_tense(input_text,self.verb_chosen,self.chosen_form_nlp,original_phrase)
             combat(success,self.protagonist,self.enemy)
         if self.enemy.hp == 0:
             print("You defeated the enemy")
@@ -161,13 +185,14 @@ class Level:
             print("You lost the battle")
 
 def main():
-    Achievements()
+    text_analyzer = TextAnalyzer()
     protagonist_name = input("Enter your name: ")
     protagonist = Protagonist(protagonist_name)
+    achievements = Achievements(protagonist)
     for level_number in range(1, 6):
-        level = Level(protagonist,level_number)
+        level = Level(protagonist,level_number,text_analyzer)
         level.play()
-        Achievements.check_level()
+        achievements.check_level()
 
 if __name__ == "__main__":
     main()
