@@ -1,44 +1,13 @@
 import spacy
 import random
-import requests
-
-api_url = "https://api.openai.com/v1/engines/davinci-codex/completions"
-
-api_key = "YOUR_API_KEY"
-
-headers = {
-    "Content-Type": "application/json",
-    "Authorization": f"Bearer {api_key}"
-}
-
-verbal_forms = {"VBG":"Present continous","VBN":"Past participle","VBD":"Past simple","VBZ":"Present simple(3rd Person)","VBP":"Present simple","VH":"Future","VHD":"Past perfect","VHN":"Past Participle","VHP":"Present Perfect","VHZ":"Present Perfect(3rd person)","VVN":"Past Participle"}
-
-verbs_most_used = ["be","have","do","make","use","say","get","go","take","see","know","include","come","find","give","think","work","need","look","want","provide","help","become","start","follow","show","call","try","create","keep","leave","write","tell","play","add","feel","run","read","allow","put","mean","seem","lead","set","offer","ask","bring","hold","build","require","continue","learn","live","move","begin","like","receive","let","support","develop","consider","change","base","turn","pay","believe","meet","love","increase","happen","grow","serve","send","understand","remain","hear","lose","appear","accord","buy","win","expect","involve","produce","choose","speak","cause","improve","open","apply","talk","report","spend","join","sell","cover","enjoy","pass","reduce","stop","die"]
-
-prompt_first_round = ""
-
-prompt_second_rounds = ""
+import re
+import openai
 
 def game_instructions():
     print("Welcome to the Legend of the Verbs!\nIn this game, you will control a protagonist and engage in battles with enemies")
     print("You will learn how to use the modal verbs\nYou will have to attack the enemies using modal verbs")
     print("You will have to use the correct modal verb to defeat the enemy\nIf you use the wrong modal verb, you will lose your turn")
     print("You will have 100HP and the enemy will have HP according to the difficulty level")
-
-
-def api_gpt_call(prompt):
-    data = {
-    "prompt": prompt,
-    "max_tokens": 100
-    }
-    
-    response = requests.post(api_url, json=data, headers=headers)
-    result = response.json()
-    
-    if response.status_code == 200:
-        return response.json()["choices"][0]["text"]
-    else:
-        return "Error: Failed to call GPT API"
 
 class Achievements:
     def __init__(self,protagonist):
@@ -100,19 +69,8 @@ class Protagonist(Character):
         super().__init__(name, hp=100, atk=20)
 
 class Enemy(Character):
-    def __init__(self, difficulty):
-        super().__init__(hp = 50 * difficulty, atk = 10 * difficulty)
-
-def combat(success,protagonist,enemy):
-    if success == True:
-        Achievements.increase_streak()
-        protagonist.attack(enemy)
-        print("Your cast was successful!, you dealt damage to the enemy his hp is now: ", enemy.hp)
-    else:
-        Achievements.reset_streak()
-        enemy.attack(protagonist)
-        print("Your cast was unsuccessful!, the enemy dealt damage to you, your hp is now: ", protagonist.hp)
-        
+    def __init__(self,name, difficulty):
+        super().__init__(name,hp = 50 * difficulty, atk = 10 * difficulty)
 
 class TextAnalyzer:
     def __init__(self):
@@ -149,48 +107,101 @@ class TextAnalyzer:
         else:
             print("You used some different words")
             return False
+
+class SentenceExtractor:
+    def __init__(self, text):
+        self.nlp = spacy.load("en_core_web_lg")
+        self.doc = self.nlp(text)
+        self.sentences = [sent.text for sent in self.doc.sents]
+
+    def extract_phrase_after_phrase(self, phrase):
+        for sentence in self.sentences:
+            if phrase in sentence:
+                match = re.search(r'"([^"]*)"', sentence)
+                if match:
+                    return match.group(1)
+                break
+        return None
+
+class Game:
+    def __init__(self):
+        self.api_url = "https://api.openai.com/v1/engines/davinci-codex/completions"
+        openai.api_key = 
     
-    def find_original_phrase(self, gpt_msg):
-        doc = self.nlp(gpt_msg)
-        #localizar la frase original que ha generado gpt para que el jugador la reformmule
+    def api_gpt_call(self,prompt):
+        data = {
+        "prompt": prompt,
+        "max_tokens": 150,
+        "temperature": 0.7,
+        }
+
+        response = openai.Completion.create(engine="davinci-codex", **data)
+        result = response.json()
+    
+        if response.status_code == 200:
+            return result["choices"][0]["text"]
+    def combat(self,success,protagonist,enemy):
+        if success == True:
+            Achievements.increase_streak()
+            protagonist.attack(enemy)
+            print("Your cast was successful!, you dealt damage to the enemy his hp is now: ", enemy.hp)
+        else:
+            Achievements.reset_streak()
+            enemy.attack(protagonist)
+            print("Your cast was unsuccessful!, the enemy dealt damage to you, your hp is now: ", protagonist.hp)
 
 class Level:
-    def __init__(self,protagonist,enemy_difficulty,text_analyzer):
-        self.enemy = Enemy(enemy_difficulty)
+    def __init__(self,protagonist, level_number):
+        self.enemy = Enemy("enemy",level_number)
         self.protagonist = protagonist
-        self.text_analyzer = text_analyzer
-        self.choose_tense_and_verb()
+        self.text_analyzer = TextAnalyzer()
+        self.text_analyzer = self.text_analyzer
+        self.game = Game()
+        self.verbs_most_used = ["be","have","do","make","use","say","get","go","take","see","know","include","come","find","give","think","work","need","look","want","provide","help","become","start","follow","show","call","try","create","keep","leave","write","tell","play","add","feel","run","read","allow","put","mean","seem","lead","set","offer","ask","bring","hold","build","require","continue","learn","live","move","begin","like","receive","let","support","develop","consider","change","base","turn","pay","believe","meet","love","increase","happen","grow","serve","send","understand","remain","hear","lose","appear","accord","buy","win","expect","involve","produce","choose","speak","cause","improve","open","apply","talk","report","spend","join","sell","cover","enjoy","pass","reduce","stop","die"]
+        self.verbal_forms = {"VBG":"Present continous","VBN":"Past participle","VBD":"Past simple","VBZ":"Present simple(3rd Person)","VBP":"Present simple","VH":"Future","VHD":"Past perfect","VHN":"Past Participle","VHP":"Present Perfect","VHZ":"Present Perfect(3rd person)","VVN":"Past Participle"}
+        self.prompt_first_round = "Your role is : Stephen King \n Instructions: Introduce the level of the game describing the area where an enemy finds the protagonist of the text-based game and challenges the protagonist to a Batlle. After describing the and introducing the area, you must tell him a phrase and he has to conjugate it in other tense. Example 'Original Phrase: You go to the store'. It must be introduced as the example i give you. You have to use the verb {verb_chosen} and the formal verb that the protagonist has to conjugate is {form_chosen}. The phrase to conjugate must go after the message 'Original phrase:' "
+        self.prompt_second_rounds = "Your role is : Stephen King\nThis was my first prompt {formated_prompt_first_round}, take it as context to keep the line of the history.\n This was your response {gpt_msg}, take it as context for keeping the line of the history.\n Now you have to keep the dialogue with the protagonist. \b The verb that you have to use for the phrase is {verb_chosen} and the formal verb that the protagonist has to conjugate is {form_chosen}. The phrase to conjugate must go after the message 'Original phrase:'"
+        self.formated_prompt_first_round = None
+        self.formated_prompt_second_round = None
     def choose_tense_and_verb(self):
-        self.verb_chosen = random.choice(verbs_most_used)
-        self.chosen_form_nlp = random.choice(list(verbal_forms.keys()))
-        self.form_chosen = verbal_forms[self.chosen_form_nlp]
+        self.verb_chosen = random.choice(self.verbs_most_used)
+        self.chosen_form_nlp = random.choice(list(self.verbal_forms.keys()))
+        self.form_chosen = self.verbal_forms[self.chosen_form_nlp]
 
     def play(self):
-        gpt_msg = api_gpt_call(prompt_first_round)
+        self.choose_tense_and_verb()
+        self.formated_prompt_first_round = self.prompt_first_round.format(verb_chosen = self.verb_chosen, form_chosen = self.form_chosen)
+        gpt_msg = self.game.api_gpt_call(self.prompt_first_round)
         print(gpt_msg)
-        original_phrase = self.text_analyzer.find_original_phrase(gpt_msg)
+        extractor = SentenceExtractor(gpt_msg)
+        pattern = 'Original Phrase: "'
+        original_phrase = extractor.extract_phrase_after_phrase(pattern)
         input_text = input("Enter your phrase: ")
         success = self.text_analyzer.check_tense(TextAnalyzer,input_text,self.verb_chosen,self.chosen_form_nlp,original_phrase)
-        combat(success,self.protagonist,self.enemy)
+        self.game.combat(success,self.protagonist,self.enemy)
         
         while self.enemy.hp > 0 and self.protagonist.hp > 0:
-            gpt_msg = api_gpt_call(prompt_second_rounds)
+            self.choose_tense_and_verb()
+            self.formated_prompt_second_rounds = format(self.prompt_second_rounds,formated_prompt_first_round = self.formated_prompt_first_round, gpt_msg = gpt_msg, verb_chosen = self.verb_chosen, form_chosen = self.form_chosen)
+            gpt_msg = self.game.api_gpt_call(self.formated_prompt_second_rounds)
+            print(gpt_msg)
+            extractor = SentenceExtractor(gpt_msg)
+            pattern = 'Original Phrase: "'
+            original_phrase = extractor.extract_phrase_after_phrase(pattern)
             input_text = input("Enter your phrase: ")
-            original_phrase = self.text_analyzer.find_original_phrase(gpt_msg)
             success = self.text_analyzer.check_tense(input_text,self.verb_chosen,self.chosen_form_nlp,original_phrase)
-            combat(success,self.protagonist,self.enemy)
+            self.game.combat(success,self.protagonist,self.enemy)
         if self.enemy.hp == 0:
             print("You defeated the enemy")
         else:
             print("You lost the battle")
 
 def main():
-    text_analyzer = TextAnalyzer()
     protagonist_name = input("Enter your name: ")
     protagonist = Protagonist(protagonist_name)
     achievements = Achievements(protagonist)
     for level_number in range(1, 6):
-        level = Level(protagonist,level_number,text_analyzer)
+        level = Level(protagonist,level_number)
         level.play()
         achievements.check_level()
 
