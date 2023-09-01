@@ -94,7 +94,6 @@ class TextAnalyzer:
             return original_phrase
         else:
             return None
-    
 
     def remove_auxiliary(self, doc):
         filtered_tokens = [
@@ -176,17 +175,12 @@ class Level:
         self.verbs_most_used = ["be", "have", "do", "make", "use", "say", "get", "go", "take", "see", "know", "include", "come", "find", "give", "think", "work", "need", "look", "want", "provide", "help", "become", "start", "follow", "show", "call", "try", "create", "keep", "leave", "write", "tell", "play", "add", "feel", "run", "read", "allow", "put", "mean", "seem", "lead", "set", "offer", "ask", "bring", "hold", "build", "require", "continue", "learn",
                                 "live", "move", "begin", "like", "receive", "let", "support", "develop", "consider", "change", "base", "turn", "pay", "believe", "meet", "love", "increase", "happen", "grow", "serve", "send", "understand", "remain", "hear", "lose", "appear", "accord", "buy", "win", "expect", "involve", "produce", "choose", "speak", "cause", "improve", "open", "apply", "talk", "report", "spend", "join", "sell", "cover", "enjoy", "pass", "reduce", "stop", "die"]
         self.verbal_forms = {
-        "VBG": "Present continuous",
-        "VBN": "Past participle",
-        "VBD": "Past simple",
-        "VBZ": "Present simple (3rd Person)",
-        "VBP": "Present simple",
-        "VH": "Future",
-        "VHD": "Past perfect",
-        "VHN": "Past Participle",
-        "VHP": "Present Perfect",
-        "VHZ": "Present Perfect (3rd person)",
-        "VVN": "Past Participle"
+            "VB": "Future",
+            "VBD": "Past simple",
+            "VBG": ["Present continous", "Past continous"],
+            "VBN": ["Present perfect", "Past perfect", "Future perfect"],
+            "VBP": "Present simple",
+            "VBZ": "3rd person present simple"
         }
         self.prompt_first_round = "Your role is : Stephen King \n Instructions: Introduce the area where an enemy finds the protagonist and challenges the protagonist to a Batlle. After describing the and introducing the area, you must tell him a phrase and he has to conjugate it in other tense. Example 'Original Phrase: You go to the store'. It must be introduced as the example i give you. You have to use the verb {verb_chosen} and the formal verb that the protagonist has to conjugate is {form_chosen}."
         self.prompt_second_rounds = "Your role is : Stephen King\n Now you have to keep the dialogue with the protagonist. \b The verb that you have to use for the phrase is {verb_chosen} and the formal verb that the protagonist has to conjugate is {form_chosen}. The phrase to conjugate must go after the message 'Original phrase:'"
@@ -196,7 +190,11 @@ class Level:
     def choose_tense_and_verb(self):
         self.verb_chosen = random.choice(self.verbs_most_used)
         self.chosen_form_nlp = random.choice(list(self.verbal_forms.keys()))
-        self.form_chosen = self.verbal_forms[self.chosen_form_nlp]
+        self.tense_options = self.verbal_forms[self.chosen_form_nlp]
+        if isinstance(self.tense_options, list):
+            self.form_chosen = random.choice(self.tense_options)
+        else:
+            self.form_chosen = self.tense_options
 
     def play(self):
         self.choose_tense_and_verb()
@@ -218,7 +216,8 @@ class Level:
             gpt_msg = self.game.api_gpt_call(
                 self.formated_prompt_second_rounds, tokens=300)
             print(gpt_msg)
-            original_phrase = self.text_analyzer.extract_original_phrase(gpt_msg)
+            original_phrase = self.text_analyzer.extract_original_phrase(
+                gpt_msg)
             input_text = input("Enter your phrase: ")
             success = self.text_analyzer.check_tense(
                 input_text, self.verb_chosen, self.chosen_form_nlp, original_phrase)
