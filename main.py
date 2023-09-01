@@ -110,22 +110,43 @@ class TextAnalyzer:
                     return False
         return True
 
-    def check_tense(self, verb_chosen, chosen_form_nlp, input_text, original_phrase):
+    def check_tense(self, verb_chosen, chosen_form_nlp, input_text, original_phrase, chosen_form):
         doc = self.nlp(input_text)
         doc2 = self.nlp(original_phrase)
+
         if self.compare_similarity(doc, doc2):
-            for token in doc:
-                if token.pos_ == "VERB":
-                    if token.lemma_ == verb_chosen and token.tag_ == chosen_form_nlp:
-                        return True
-                    elif token.lemma_ != verb_chosen:
-                        print("You used the wrong verb")
-                        return False
+            for i, token in enumerate(doc):
+                if token.pos_ == "VERB" and token.lemma_ == verb_chosen and token.tag_ == chosen_form_nlp:
+                    if chosen_form == "Future":
+                        if i >= 1 and doc[i-1].lemma_ == "will":
+                            return True
+                        else:
+                            return False
+                    elif chosen_form == "Past continous":
+                        if i >= 1 and doc[i-1].lemma_ == "be" and doc[i-1].tag_ == "VBD":
+                            return True
+                        else:
+                            return False
+                    elif chosen_form == "Present continous":
+                        if i >= 1 and (doc[i-1].lemma_ == "be" and (doc[i-1].tag_ == "VBP" or doc[i-1].tag_ == "VBZ")):
+                            return True
+                        else:
+                            return False
+                    elif chosen_form == "Present perfect":
+                        if i >= 1 and (doc[i-1].lemma_ == "have" and (doc[i-1].tag_ == "VBP" or doc[i-1].tag_ == "VBZ")):
+                            return True
+                        else:
+                            return False
+                    elif chosen_form == "Past perfect":
+                        if i >= 1 and doc[i-1].lemma_ == "have" and doc[i-1].tag_ == "VBD":
+                            return True
+                        else:
+                            return False
                     else:
-                        print("You used the wrong tense")
-                        return False
+                        return True
+
+            return False
         else:
-            print("You used some different words")
             return False
 
 
@@ -178,7 +199,7 @@ class Level:
             "VB": "Future",
             "VBD": "Past simple",
             "VBG": ["Present continous", "Past continous"],
-            "VBN": ["Present perfect", "Past perfect", "Future perfect"],
+            "VBN": ["Present perfect", "Past perfect"],
             "VBP": "Present simple",
             "VBZ": "3rd person present simple"
         }
@@ -206,7 +227,7 @@ class Level:
         print(original_phrase)
         input_text = input("Enter your phrase: ")
         success = self.text_analyzer.check_tense(
-            input_text, self.verb_chosen, self.chosen_form_nlp, original_phrase)
+            input_text, self.verb_chosen, self.chosen_form_nlp, original_phrase, self.form_chosen)
         self.game.combat(success, self.protagonist, self.enemy)
 
         while self.enemy.hp > 0 and self.protagonist.hp > 0:
@@ -220,7 +241,7 @@ class Level:
                 gpt_msg)
             input_text = input("Enter your phrase: ")
             success = self.text_analyzer.check_tense(
-                input_text, self.verb_chosen, self.chosen_form_nlp, original_phrase)
+                input_text, self.verb_chosen, self.chosen_form_nlp, original_phrase,self.form_chosen)
             self.game.combat(success, self.protagonist, self.enemy)
         if self.enemy.hp == 0:
             print("You defeated the enemy")
