@@ -241,7 +241,7 @@ class Level:
                 gpt_msg)
             input_text = input("Enter your phrase: ")
             success = self.text_analyzer.check_tense(
-                input_text, self.verb_chosen, self.chosen_form_nlp, original_phrase,self.form_chosen)
+                input_text, self.verb_chosen, self.chosen_form_nlp, original_phrase, self.form_chosen)
             self.game.combat(success, self.protagonist, self.enemy)
         if self.enemy.hp == 0:
             print("You defeated the enemy")
