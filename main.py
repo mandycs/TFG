@@ -26,12 +26,12 @@ class Achievements:
     def check_level(self):
         if self.level == 2 and self.protagonist.hp == 100:
             print(
-                "Congratulations!!! You have reached level 2 without taking any damage!")
+                "\n\nCongratulations!!! You have reached level 2 without taking any damage!\n\n")
         elif self.level == 4 and self.protagonist.hp >= 50:
-            print("Congratulations!!! You have reached level 4 with at least 50HP!")
+            print("\n\nCongratulations!!! You have reached level 4 with at least 50HP!\n\n")
         elif self.level == 6 and self.protagonist.hp == 100:
             print(
-                "Congratulations!!! You are a beast!!! You have reached level 6 without taking any damage!")
+                "\n\nCongratulations!!! You are a beast!!! You have reached level 6 without taking any damage!\n\n")
 
     def increase_level(self):
         self.level += 1
@@ -47,15 +47,15 @@ class Achievements:
     def check_achievements(self):
         if self.streak >= 1 and not self.achievements[1]:
             print(
-                "Achievement unlocked: Congratulations!!! You have casted your first spell!")
+                "\n\nAchievement unlocked: Congratulations!!! You have casted your first spell!\n\n")
         if self.streak >= 5 and not self.achievements[5]:
-            print("Achievement unlocked: 5-streak!")
+            print("\n\nAchievement unlocked: 5-streak!\n\n")
             self.achievements[5] = True
         if self.streak >= 10 and not self.achievements[10]:
-            print("Achievement unlocked: 10-streak!")
+            print("\n\nAchievement unlocked: 10-streak!\n\n")
             self.achievements[10] = True
         if self.streak >= 20 and not self.achievements[20]:
-            print("Achievement unlocked: 20-streak!")
+            print("\n\nAchievement unlocked: 20-streak!\n\n")
             self.achievements[20] = True
 
 
@@ -74,7 +74,7 @@ class Character:
 
 class Protagonist(Character):
     def __init__(self, name):
-        super().__init__(name, hp=100, atk=20)
+        super().__init__(name, hp=100, atk=30)
 
 
 class Enemy(Character):
@@ -158,7 +158,7 @@ class Game:
         message = [
             {
                 "role": "user",
-                "content": "Your role is : Stephen King \\n Instructions: Introduce the area where an enemy finds the protagonist and challenges the protagonist to a Batlle. After describing the and introducing the area, you must tell him a phrase and he has to conjugate it in other tense. Example 'Original Phrase is You go to the store'. It must be introduced as the example i give you. You have to use the verb {verb_chosen} and the formal verb that the protagonist has to conjugate is {form_chosen}. "
+                "content": "Your role is : Stephen King \\n Instructions: Introduce the area where an enemy finds the protagonist and challenges the protagonist to a Batlle. After describing the and introducing the area, you must tell him a phrase and he has to conjugate it in other tense. Example 'Original Phrase is You go to the store'. It must be introduced as the example i give you. You have to use the verb {verb_chosen} and the formal verb that the protagonist has to conjugate is {form_chosen}."
             },
             {
                 "role": "assistant",
@@ -179,16 +179,17 @@ class Game:
         if success == True:
             protagonist.attack(enemy)
             print(
-                "Your cast was successful!, you dealt damage to the enemy his hp is now: ", enemy.hp)
+                "\n\nYour cast was successful!, you dealt damage to the enemy his hp is now: ", enemy.hp,"\n\n")
         else:
             enemy.attack(protagonist)
             print(
-                "Your cast was unsuccessful!, the enemy dealt damage to you, your hp is now: ", protagonist.hp)
+                "\n\nYour cast was unsuccessful!, the enemy dealt damage to you, your hp is now: ", protagonist.hp,"\n\n")
 
 
 class Level:
-    def __init__(self, protagonist, level_number):
+    def __init__(self, protagonist, level_number, achievements):
         self.enemy = Enemy("enemy", level_number)
+        self.achievements = achievements
         self.protagonist = protagonist
         self.text_analyzer = TextAnalyzer()
         self.text_analyzer = self.text_analyzer
@@ -222,13 +223,17 @@ class Level:
         self.formated_prompt_first_round = self.prompt_first_round.format(
             verb_chosen=self.verb_chosen, form_chosen=self.form_chosen)
         gpt_msg = self.game.api_gpt_call(self.prompt_first_round, tokens=300)
-        print(gpt_msg)
+        print("\n\n",gpt_msg,"\n\n")
         original_phrase = self.text_analyzer.extract_original_phrase(gpt_msg)
-        print(original_phrase)
-        input_text = input("Enter your phrase: ")
+        input_text = input("\n\nEnter your phrase: \n\n")
         success = self.text_analyzer.check_tense(
             input_text, self.verb_chosen, self.chosen_form_nlp, original_phrase, self.form_chosen)
+        if success == True:
+            self.achievements.increase_streak()
+        else:
+            self.achievements.reset_streak()
         self.game.combat(success, self.protagonist, self.enemy)
+        self.achievements.check_achievements()
 
         while self.enemy.hp > 0 and self.protagonist.hp > 0:
             self.choose_tense_and_verb()
@@ -236,27 +241,31 @@ class Level:
                 formated_prompt_first_round=self.formated_prompt_first_round, gpt_msg=gpt_msg, verb_chosen=self.verb_chosen, form_chosen=self.form_chosen)
             gpt_msg = self.game.api_gpt_call(
                 self.formated_prompt_second_rounds, tokens=300)
-            print(gpt_msg)
+            print("\n\n",gpt_msg,"\n\n")
             original_phrase = self.text_analyzer.extract_original_phrase(
                 gpt_msg)
-            input_text = input("Enter your phrase: ")
+            input_text = input("\n\nEnter your phrase: \n\n")
             success = self.text_analyzer.check_tense(
                 input_text, self.verb_chosen, self.chosen_form_nlp, original_phrase, self.form_chosen)
+            if success == True:
+                self.achievements.increase_streak()
+            else:
+                self.achievements.reset_streak()
+            self.achievements.check_achievements()
             self.game.combat(success, self.protagonist, self.enemy)
         if self.enemy.hp == 0:
-            print("You defeated the enemy")
+            print("\n\nYou defeated the enemy\n\n")
         else:
-            print("You lost the battle")
+            print("\n\nYou lost the battle\n\n")
 
 
 def main():
-    protagonist_name = input("Enter your name: ")
+    protagonist_name = input("\n\nEnter your name: \n\n")
     protagonist = Protagonist(protagonist_name)
     achievements = Achievements(protagonist)
     for level_number in range(1, 6):
-        level = Level(protagonist, level_number)
+        level = Level(protagonist, level_number,achievements)
         level.play()
-        achievements.check_level()
 
 
 if __name__ == "__main__":
