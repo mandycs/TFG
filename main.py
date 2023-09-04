@@ -4,7 +4,9 @@ import openai
 
 
 class Achievements:
+    #This class is used to keep track of the achievements that the player has unlocked
     def __init__(self, protagonist):
+        #This is a dictionary that stores the achievements that the player has unlocked
         self.streak = 0
         self.level = 1
         self.protagonist = protagonist
@@ -14,7 +16,7 @@ class Achievements:
             10: False,
             15: False
         }
-
+#This method is used to check if the player has reached a certain level with certain conditions and protagonist earns extra damage.
     def check_level(self):
         if self.level == 2 and self.protagonist.hp == 100:
             self.protagonist.increase_dmg(10)
@@ -39,6 +41,7 @@ class Achievements:
     def reset_streak(self):
         self.streak = 0
 
+#This method is used to check if the player has reached a certain achievement with certain conditions.
     def check_achievements(self):
         if self.streak >= 1 and not self.achievements[1]:
             self.protagonist.increase_dmg(5)
@@ -61,6 +64,9 @@ class Achievements:
             self.achievements[15] = True
 
 
+#This class is used to create the characters of the game
+#The protagonist is the character that the player controls
+#The enemy is the character that the player has to defeat
 class Character:
     def __init__(self, name, hp, atk):
         self.name = name
@@ -86,7 +92,8 @@ class Enemy(Character):
     def __init__(self, name, difficulty):
         super().__init__(name, hp=50 * difficulty, atk=10 * difficulty)
 
-
+#This class is used to analyze the text that the player inputs
+#It uses the spacy library to analyze the text
 class TextAnalyzer:
     def __init__(self):
         self.nlp = spacy.load("en_core_web_lg")
@@ -154,12 +161,14 @@ class TextAnalyzer:
             print("\n\nYou used the wrong words")
             return False
 
-
-class Game:
+#This class is used to call the OpenAI API
+#It uses the OpenAI API to generate the text that the player will see
+#It uses the OpenAI API to generate the phrase that the player will have to conjugate
+class ApiGpt:
     def __init__(self):
         openai.api_key = ""
 
-    def api_gpt_call_phrase(self, prompt):
+    def call_phrase(self, prompt):
         message = [
             {
                 "role": "system",
@@ -184,7 +193,7 @@ class Game:
             stop=None)
         return response.choices[0].message.content
 
-    def api_gpt_call_area(self):
+    def call_area(self):
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -211,15 +220,9 @@ class Game:
             stop=None)
         return response.choices[0].message.content
 
-    def combat(self, success, protagonist, enemy):
-        if success == True:
-            protagonist.attack(enemy)
-            print(
-                "\n\nYour cast was successful!, you dealt damage to the enemy his hp is now: ", enemy.hp)
-        else:
-            enemy.attack(protagonist)
-            print("\n\nYour cast was unsuccessful!, the enemy dealt damage to you, your hp is now: ", protagonist.hp)
 
+#This class is used to create the levels of the game
+#Each level has an enemy that the player has to defeat
 
 class Level:
     def __init__(self, protagonist, level_number, achievements):
@@ -228,9 +231,11 @@ class Level:
         self.protagonist = protagonist
         self.text_analyzer = TextAnalyzer()
         self.text_analyzer = self.text_analyzer
-        self.game = Game()
+        self.api = ApiGpt()
+        #This is a list of the most used verbs in the English language taken from enTenTen21 corpus
         self.verbs_most_used = ["be", "have", "do", "make", "use", "say", "get", "go", "take", "see", "know", "include", "come", "find", "give", "think", "work", "need", "look", "want", "provide", "help", "become", "start", "follow", "show", "call", "try", "create", "keep", "leave", "write", "tell", "play", "add", "feel", "run", "read", "allow", "put", "mean", "seem", "lead", "set", "offer", "ask", "bring", "hold", "build", "require", "continue", "learn",
                                 "live", "move", "begin", "like", "receive", "let", "support", "develop", "consider", "change", "base", "turn", "pay", "believe", "meet", "love", "increase", "happen", "grow", "serve", "send", "understand", "remain", "hear", "lose", "appear", "accord", "buy", "win", "expect", "involve", "produce", "choose", "speak", "cause", "improve", "open", "apply", "talk", "report", "spend", "join", "sell", "cover", "enjoy", "pass", "reduce", "stop", "die"]
+        #This is a dictionary that contains the verbal forms of the verbs that are used in the game, the key is the form in spacy
         self.verbal_forms = {
             "VB": "Future",
             "VBD": "Past simple",
@@ -240,7 +245,7 @@ class Level:
             "VBZ": "3rd person present simple"
         }
         self.prompt = "Generate a simple phrase with subject, verb, and complement using the verb: {verb_chosen}"
-
+    #This method is used to choose a verb and a tense for the phrase that the player will have to conjugate
     def choose_tense_and_verb(self):
         self.verb_chosen = random.choice(self.verbs_most_used)
         self.chosen_form_nlp = random.choice(list(self.verbal_forms.keys()))
@@ -249,46 +254,50 @@ class Level:
             self.form_chosen = random.choice(self.tense_options)
         else:
             self.form_chosen = self.tense_options
-
+    #This method contains the logic of the game
     def play(self):
         self.choose_tense_and_verb()
         self.formated_prompt = self.prompt.format(
             verb_chosen=self.verb_chosen, form_chosen=self.form_chosen)
-        gpt_msg = self.game.api_gpt_call_area()
+        #This is the part where the area is generated
+        gpt_msg = self.api.call_area()
         print("\n\n", gpt_msg)
-        gpt_msg = self.game.api_gpt_call_phrase(self.formated_prompt)
+        gpt_msg = self.api.call_phrase(self.formated_prompt)
         print("\n\n", gpt_msg)
         print("\n\nYou have to conjugate the phrase in the following form: ",
             self.form_chosen, "The main verb is: ", self.verb_chosen)
         input_text = input("\n\nEnter your phrase:")
         success = self.text_analyzer.check_tense(
             self.verb_chosen, self.chosen_form_nlp, input_text, gpt_msg, self.form_chosen)
-        if success == True:
-            self.achievements.increase_streak()
-        else:
-            self.achievements.reset_streak()
-        self.game.combat(success, self.protagonist, self.enemy)
-
+        self.combat(success, self.protagonist, self.enemy)
+        #This is the part where the combat is developed
         while self.enemy.hp > 0 and self.protagonist.hp > 0:
             self.choose_tense_and_verb()
             self.formated_prompt = self.prompt.format(
                 verb_chosen=self.verb_chosen, form_chosen=self.form_chosen)
-            gpt_msg = self.game.api_gpt_call_phrase(self.formated_prompt)
+            gpt_msg = self.api.call_phrase(self.formated_prompt)
             print("\n\n", gpt_msg)
             print("\n\nYou have to conjugate the phrase in the following form: ",
                 self.form_chosen, "The main verb is : ", self.verb_chosen)
             input_text = input("\n\nEnter your phrase:")
             success = self.text_analyzer.check_tense(
                 self.verb_chosen, self.chosen_form_nlp, input_text, gpt_msg, self.form_chosen)
-            if success == True:
-                self.achievements.increase_streak()
-            else:
-                self.achievements.reset_streak()
-            self.game.combat(success, self.protagonist, self.enemy)
+            self.combat(success, self.protagonist, self.enemy)
         if self.enemy.hp <= 0:
             print("\n\nYou defeated the enemy")
         else:
             print("\n\nYou lost the battle")
+    #This method is used to calculate the damage that the player and the enemy will deal to each other
+    def combat(self, success, protagonist, enemy):
+        if success == True:
+            protagonist.attack(enemy)
+            self.achievements.increase_streak()
+            print(
+                "\n\nYour cast was successful!, you dealt damage to the enemy his hp is now: ", enemy.hp)
+        else:
+            enemy.attack(protagonist)
+            self.achievements.reset_streak()
+            print("\n\nYour cast was unsuccessful!, the enemy dealt damage to you, your hp is now: ", protagonist.hp)
 
 
 def game_instructions():
