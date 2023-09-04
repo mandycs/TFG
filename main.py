@@ -3,13 +3,6 @@ import random
 import openai
 
 
-def game_instructions():
-    print("Welcome to the Legend of the Verbs!\nIn this game, you will control a protagonist and engage in battles with enemies")
-    print("You will learn how to use the modal verbs\nYou will have to attack the enemies using modal verbs")
-    print("You will have to use the correct modal verb to defeat the enemy\nIf you use the wrong modal verb, you will lose your turn")
-    print("You will have 100HP and the enemy will have HP according to the difficulty level")
-
-
 class Achievements:
     def __init__(self, protagonist):
         self.streak = 0
@@ -26,13 +19,13 @@ class Achievements:
         if self.level == 2 and self.protagonist.hp == 100:
             self.protagonist.increase_dmg(10)
             print(
-                "\n\nCongratulations!!! You have reached level 2 without taking any damage!\n\n")
+                "\n\nCongratulations!!! You have reached level 2 without taking any damage!")
         elif self.level == 4 and self.protagonist.hp >= 50:
             print(
-                "\n\nCongratulations!!! You have reached level 4 with at least 50HP!\n\n")
+                "\n\nCongratulations!!! You have reached level 4 with at least 50HP!")
         elif self.level == 6 and self.protagonist.hp == 100:
             print(
-                "\n\nCongratulations!!! You are a beast!!! You have reached level 6 without taking any damage!\n\n")
+                "\n\nCongratulations!!! You are a beast!!! You have reached level 6 without taking any damage!")
 
     def increase_level(self):
         self.level += 1
@@ -50,21 +43,21 @@ class Achievements:
         if self.streak >= 1 and not self.achievements[1]:
             self.protagonist.increase_dmg(5)
             print(
-                "\n\nAchievement unlocked: Congratulations!!! You have casted your first spell! Your damage increased 5 points!!\n\n")
+                "\n\nAchievement unlocked: Congratulations!!! You have casted your first spell! Your damage increased 5 points!!")
         if self.streak >= 5 and not self.achievements[5]:
             self.protagonist.increase_dmg(10)
             print(
-                "\n\nAchievement unlocked: 5-streak! Your damage increased 5 points!!!\n\n")
+                "\n\nAchievement unlocked: 5-streak! Your damage increased 5 points!!!")
             self.achievements[5] = True
         if self.streak >= 10 and not self.achievements[10]:
             self.protagonist.increase_dmg(20)
             print(
-                "\n\nAchievement unlocked: 10-streak! Your damage increased 20 points!!!\n\n")
+                "\n\nAchievement unlocked: 10-streak! Your damage increased 20 points!!!")
             self.achievements[10] = True
         if self.streak >= 15 and not self.achievements[20]:
             self.protagonist.increase_dmg(30)
             print(
-                "\n\nAchievement unlocked: 15-streak! Your damage increased 30 points\n\n")
+                "\n\nAchievement unlocked: 15-streak! Your damage increased 30 points")
             self.achievements[15] = True
 
 
@@ -126,37 +119,39 @@ class TextAnalyzer:
                         if i >= 1 and doc[i-1].lemma_ == "will":
                             return True
                         else:
-                            print("You have to use the modal verb 'will'")
+                            print("\n\nYou have to use the modal verb 'will'")
                             return False
                     elif chosen_form == "Past continous":
                         if i >= 1 and doc[i-1].lemma_ == "be" and doc[i-1].tag_ == "VBD":
                             return True
                         else:
-                            print("You have to use the verb 'be' in past tense")
+                            print("\n\nYou have to use the verb 'be' in past tense")
                             return False
                     elif chosen_form == "Present continous":
                         if i >= 1 and (doc[i-1].lemma_ == "be" and (doc[i-1].tag_ == "VBP" or doc[i-1].tag_ == "VBZ")):
                             return True
                         else:
-                            print("You have to use the verb 'be' in present tense")
+                            print(
+                                "\n\nYou have to use the verb 'be' in present tense")
                             return False
                     elif chosen_form == "Present perfect":
                         if i >= 1 and (doc[i-1].lemma_ == "have" and (doc[i-1].tag_ == "VBP" or doc[i-1].tag_ == "VBZ")):
                             return True
                         else:
-                            print("You have to use the verb 'have' in present tense")
+                            print(
+                                "\n\nYou have to use the verb 'have' in present tense")
                             return False
                     elif chosen_form == "Past perfect":
                         if i >= 1 and doc[i-1].lemma_ == "have" and doc[i-1].tag_ == "VBD":
                             return True
                         else:
-                            print("You have to use the verb 'have' in past tense")
+                            print(
+                                "\n\nYou have to use the verb 'have' in past tense")
                             return False
                     else:
-                        print("You used the correct verb")
                         return True
         else:
-            print("You used the wrong words")
+            print("\n\nYou used the wrong words")
             return False
 
 
@@ -220,11 +215,10 @@ class Game:
         if success == True:
             protagonist.attack(enemy)
             print(
-                "\n\nYour cast was successful!, you dealt damage to the enemy his hp is now: ", enemy.hp, "\n\n")
+                "\n\nYour cast was successful!, you dealt damage to the enemy his hp is now: ", enemy.hp)
         else:
             enemy.attack(protagonist)
-            print(
-                "\n\nYour cast was unsuccessful!, the enemy dealt damage to you, your hp is now: ", protagonist.hp, "\n\n")
+            print("\n\nYour cast was unsuccessful!, the enemy dealt damage to you, your hp is now: ", protagonist.hp)
 
 
 class Level:
@@ -261,11 +255,11 @@ class Level:
         self.formated_prompt = self.prompt.format(
             verb_chosen=self.verb_chosen, form_chosen=self.form_chosen)
         gpt_msg = self.game.api_gpt_call_area()
-        print("\n\n", gpt_msg, "\n\n")
+        print("\n\n", gpt_msg)
         gpt_msg = self.game.api_gpt_call_phrase(self.formated_prompt)
         print("\n\n", gpt_msg)
         print("\n\nYou have to conjugate the phrase in the following form: ",
-            self.form_chosen, "\n\n")
+            self.form_chosen, "The main verb is: ", self.verb_chosen)
         input_text = input("\n\nEnter your phrase:")
         success = self.text_analyzer.check_tense(
             self.verb_chosen, self.chosen_form_nlp, input_text, gpt_msg, self.form_chosen)
@@ -282,7 +276,7 @@ class Level:
             gpt_msg = self.game.api_gpt_call_phrase(self.formated_prompt)
             print("\n\n", gpt_msg)
             print("\n\nYou have to conjugate the phrase in the following form: ",
-                self.form_chosen, "\n\n")
+                self.form_chosen, "The main verb is : ", self.verb_chosen)
             input_text = input("\n\nEnter your phrase:")
             success = self.text_analyzer.check_tense(
                 self.verb_chosen, self.chosen_form_nlp, input_text, gpt_msg, self.form_chosen)
@@ -292,18 +286,77 @@ class Level:
                 self.achievements.reset_streak()
             self.game.combat(success, self.protagonist, self.enemy)
         if self.enemy.hp <= 0:
-            print("\n\nYou defeated the enemy\n\n")
+            print("\n\nYou defeated the enemy")
         else:
-            print("\n\nYou lost the battle\n\n")
+            print("\n\nYou lost the battle")
+
+
+def game_instructions():
+    instructions = """
+    **Game Objective:**
+    You are the protagonist in a magical battle. Your goal is to defeat each enemy you encounter by correctly conjugating magical phrases in various tenses. As you progress through the levels, you'll face tougher enemies and more challenging conjugations.
+
+    **Game Instructions:**
+
+    1. **Enter Your Name:**
+        - At the beginning of the game, enter your character's name when prompted.
+
+    2. **Level Up:**
+        - You start at Level 1 with full health (100 HP) and an initial damage of 30 points.
+
+    3. **Game Levels:**
+        - The game consists of 5 levels, each with a unique enemy to defeat.
+        - To progress to the next level, you need to successfully defeat the current enemy by correctly conjugating magical phrases in the specified tense.
+
+    4. **Battling an Enemy:**
+        - Each level begins with a description of the area and the enemy challenging you to a magic battle.
+        - You will be prompted to conjugate a magical phrase using a specific verb in a given tense.
+        - Type your conjugated phrase in response to the prompt and hit Enter.
+
+    5. **Conjugation Challenge:**
+        - Conjugate the given verb in the specified tense.
+        - If your conjugation is correct, you'll deal damage to the enemy based on your current damage points.
+        - If your conjugation is incorrect, the enemy will attack, and your HP will decrease.
+
+    6. **Achievements:**
+        - You can earn achievements for casting successful spells in a streak.
+        - Achievements grant you additional damage points.
+
+    7. **Level Completion:**
+        - Defeat the enemy by reducing their HP to zero to complete the level.
+        - You'll automatically progress to the next level if you win.
+
+    8. **Game Over:**
+        - If your HP drops to zero at any point, you'll lose the game.
+        - You can start a new game by rerunning the program.
+
+    9. **Tense Types:**
+        - You will encounter various verb tenses, including future, past simple, present continuous, past continuous, present perfect, and past perfect.
+
+    10. **Use Verb Forms:**
+        - Pay attention to the tense and form specified for each magical phrase prompt.
+        - Make sure to use the correct verb form to cast the spell successfully.
+
+    11. **Have Fun:**
+        - Enjoy the magical battles and challenge yourself to progress through all five levels.
+
+    Remember, your character's HP and damage points will carry over from one level to the next, so strategize and use your achievements wisely to conquer each level. Good luck and may your magical prowess lead you to victory!
+    """
+
+    print(instructions)
 
 
 def main():
-    protagonist_name = input("\n\nEnter your name: ")
+    protagonist_name = input("\n\nEnter your name:")
     protagonist = Protagonist(protagonist_name)
     achievements = Achievements(protagonist)
+    game_instructions()
     for level_number in range(1, 6):
         level = Level(protagonist, level_number, achievements)
         level.play()
+        if protagonist.hp <= 0:
+            print("\n\nYou lost the game")
+            break
 
 
 if __name__ == "__main__":
