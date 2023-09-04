@@ -1,6 +1,5 @@
 import spacy
 import random
-import re
 import openai
 
 
@@ -20,21 +19,24 @@ class Achievements:
             1: False,
             5: False,
             10: False,
-            20: False
+            15: False
         }
 
     def check_level(self):
         if self.level == 2 and self.protagonist.hp == 100:
+            self.protagonist.increase_dmg(10)
             print(
                 "\n\nCongratulations!!! You have reached level 2 without taking any damage!\n\n")
         elif self.level == 4 and self.protagonist.hp >= 50:
-            print("\n\nCongratulations!!! You have reached level 4 with at least 50HP!\n\n")
+            print(
+                "\n\nCongratulations!!! You have reached level 4 with at least 50HP!\n\n")
         elif self.level == 6 and self.protagonist.hp == 100:
             print(
                 "\n\nCongratulations!!! You are a beast!!! You have reached level 6 without taking any damage!\n\n")
 
     def increase_level(self):
         self.level += 1
+        self.protagonist.increase_dmg(10)
         self.check_level()
 
     def increase_streak(self):
@@ -46,17 +48,24 @@ class Achievements:
 
     def check_achievements(self):
         if self.streak >= 1 and not self.achievements[1]:
+            self.protagonist.increase_dmg(5)
             print(
-                "\n\nAchievement unlocked: Congratulations!!! You have casted your first spell!\n\n")
+                "\n\nAchievement unlocked: Congratulations!!! You have casted your first spell! Your damage increased 5 points!!\n\n")
         if self.streak >= 5 and not self.achievements[5]:
-            print("\n\nAchievement unlocked: 5-streak!\n\n")
+            self.protagonist.increase_dmg(10)
+            print(
+                "\n\nAchievement unlocked: 5-streak! Your damage increased 5 points!!!\n\n")
             self.achievements[5] = True
         if self.streak >= 10 and not self.achievements[10]:
-            print("\n\nAchievement unlocked: 10-streak!\n\n")
+            self.protagonist.increase_dmg(20)
+            print(
+                "\n\nAchievement unlocked: 10-streak! Your damage increased 20 points!!!\n\n")
             self.achievements[10] = True
-        if self.streak >= 20 and not self.achievements[20]:
-            print("\n\nAchievement unlocked: 20-streak!\n\n")
-            self.achievements[20] = True
+        if self.streak >= 15 and not self.achievements[20]:
+            self.protagonist.increase_dmg(30)
+            print(
+                "\n\nAchievement unlocked: 15-streak! Your damage increased 30 points\n\n")
+            self.achievements[15] = True
 
 
 class Character:
@@ -76,6 +85,9 @@ class Protagonist(Character):
     def __init__(self, name):
         super().__init__(name, hp=100, atk=30)
 
+    def increase_dmg(self, amount):
+        self.atk += amount
+
 
 class Enemy(Character):
     def __init__(self, name, difficulty):
@@ -86,26 +98,19 @@ class TextAnalyzer:
     def __init__(self):
         self.nlp = spacy.load("en_core_web_lg")
 
-    def extract_original_phrase(self, text):
-        pattern = r'Original Phrase: (.+)'
-        match = re.search(pattern, text)
-        if match:
-            original_phrase = match.group(1).strip()
-            return original_phrase
-        else:
-            return None
-
     def remove_auxiliary(self, doc):
         filtered_tokens = [
-            token for token in doc if token.dep_ not in ["aux", "auxpass"]]
+            token for token in doc if token.dep_ not in ["aux", "auxpass"] and not token.is_punct]
         return self.nlp(" ".join([token.text for token in filtered_tokens]))
 
     def compare_similarity(self, doc, doc2):
         filtered_doc2 = self.remove_auxiliary(doc2)
         filtered_doc = self.remove_auxiliary(doc)
         for token1, token2 in zip(filtered_doc, filtered_doc2):
+            print(token1, "\n\n", token2)
             if token1.pos_ != "VERB" and token2.pos_ != "VERB":
                 token_similarity = token1.similarity(token2)
+                print(token_similarity)
                 if token_similarity <= 0.98:
                     return False
         return True
@@ -121,32 +126,37 @@ class TextAnalyzer:
                         if i >= 1 and doc[i-1].lemma_ == "will":
                             return True
                         else:
+                            print("You have to use the modal verb 'will'")
                             return False
                     elif chosen_form == "Past continous":
                         if i >= 1 and doc[i-1].lemma_ == "be" and doc[i-1].tag_ == "VBD":
                             return True
                         else:
+                            print("You have to use the verb 'be' in past tense")
                             return False
                     elif chosen_form == "Present continous":
                         if i >= 1 and (doc[i-1].lemma_ == "be" and (doc[i-1].tag_ == "VBP" or doc[i-1].tag_ == "VBZ")):
                             return True
                         else:
+                            print("You have to use the verb 'be' in present tense")
                             return False
                     elif chosen_form == "Present perfect":
                         if i >= 1 and (doc[i-1].lemma_ == "have" and (doc[i-1].tag_ == "VBP" or doc[i-1].tag_ == "VBZ")):
                             return True
                         else:
+                            print("You have to use the verb 'have' in present tense")
                             return False
                     elif chosen_form == "Past perfect":
                         if i >= 1 and doc[i-1].lemma_ == "have" and doc[i-1].tag_ == "VBD":
                             return True
                         else:
+                            print("You have to use the verb 'have' in past tense")
                             return False
                     else:
+                        print("You used the correct verb")
                         return True
-
-            return False
         else:
+            print("You used the wrong words")
             return False
 
 
@@ -154,15 +164,19 @@ class Game:
     def __init__(self):
         openai.api_key = ""
 
-    def api_gpt_call(self, prompt, tokens):
+    def api_gpt_call_phrase(self, prompt):
         message = [
             {
+                "role": "system",
+                "content": "You are Stephen King writing a brief Lore of my game"
+            },
+            {
                 "role": "user",
-                "content": "Your role is : Stephen King \\n Instructions: Introduce the area where an enemy finds the protagonist and challenges the protagonist to a Batlle. After describing the and introducing the area, you must tell him a phrase and he has to conjugate it in other tense. Example 'Original Phrase is You go to the store'. It must be introduced as the example i give you. You have to use the verb {verb_chosen} and the formal verb that the protagonist has to conjugate is {form_chosen}."
+                "content": "Describe the area where the protagonist finds an enemy and speaks to the protagonist challenging him to a magic battle."
             },
             {
                 "role": "assistant",
-                "content": "\nIn the fading light of dusk, the protagonist stumbled upon a forgotten graveyard nestled at the edge of the woods. The tombstones, weathered and leaning, whispered tales of long-forgotten souls. A mist hung in the air, weaving through the crooked trees like ghostly fingers. Suddenly, a rustling sound emerged from the shadows, and the enemy stepped forth, a figure clad in tattered rags with a malevolent gleam in their eyes.\n\n\"Seems you've wandered into my domain,\" the enemy hissed, their voice like a chilling breeze. \"A place where lost souls rest eternally. And now, you shall face me in a battle of wills.\"\n\nProtagonist, your destiny shall be sealed once you will have confronted your fears. As the moon rises high above these ancient graves, the past and future converge in a dance of uncertainty. Will you emerge victorious, or will the shadows claim you? The choice, dear protagonist, lies in your hands and the echoes of time yet to unfold.\n\nOriginal Phrase is You confront your fears.\n\nForm Chosen: Conjugate the phrase in the future perfect tense."
+                "content": "In the fading light of dusk, the protagonist stumbled upon a forgotten graveyard nestled at the edge of the woods. The tombstones, weathered and leaning, whispered tales of long-forgotten souls. A mist hung in the air, weaving through the crooked trees like ghostly fingers. Suddenly, a rustling sound emerged from the shadows, and the enemy stepped forth, a figure clad in tattered rags with a malevolent gleam in their eyes.\"Seems you've gone into my domain,\\\" the enemy hissed, their voice like a chilling breeze. \\\"A place where lost souls rest eternally. And now, you shall face me in a battle of wills.\\\"\\n\\nProtagonist, your destiny shall be sealed once you will have confronted your fears. As the moon rises high above these ancient graves, the past and future converge in a dance of uncertainty. Will you emerge victorious, or will the shadows claim time yet to unfold.\\n\\nOriginal Phrase: You will use your magic.\\n\\nForm Chosen: Conjugate the phrase in the past simple tense.\" you? The choice, dear protagonist, lies in your hands and the echoes of"
             },
             {"role": "user", "content": prompt},
         ]
@@ -170,7 +184,34 @@ class Game:
             model="gpt-3.5-turbo",
             messages=message,
             temperature=0.4,
-            max_tokens=tokens,
+            max_tokens=450,
+            top_p=1,
+            stop=None)
+        return response.choices[0].message.content
+
+    def api_gpt_call_area(self):
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are Stephen King writing a brief Lore of my game"
+                },
+                {
+                    "role": "user",
+                    "content": "Describe the area where the protagonist finds an enemy and speaks to the protagonist challenging him to a magic battle."
+                },
+                {
+                    "role": "assistant",
+                    "content": "In the fading light of dusk, the protagonist stumbled upon a forgotten graveyard nestled at the edge of the woods. The tombstones, weathered and leaning, whispered tales of long-forgotten souls. A mist hung in the air, weaving through the crooked trees like ghostly fingers. Suddenly, a rustling sound emerged from the shadows, and the enemy stepped forth, a figure clad in tattered rags with a malevolent gleam in their eyes.\"Seems you've gone into my domain,\\\" the enemy hissed, their voice like a chilling breeze. \\\"A place where lost souls rest eternally. And now, you shall face me in a battle of wills.\\\"\\n\\nProtagonist, your destiny shall be sealed once you will have confronted your fears. As the moon rises high above these ancient graves, the past and future converge in a dance of uncertainty. Will you emerge victorious, or will the shadows claim time yet to unfold.\\n\\nOriginal Phrase: You will use your magic.\\n\\nForm Chosen: Conjugate the phrase in the past simple tense.\" you? The choice, dear protagonist, lies in your hands and the echoes of"
+                },
+                {
+                    "role": "user",
+                    "content": "Introduce the area where an enemy finds the protagonist and challenges the protagonist to a Batlle."
+                }
+            ],
+            temperature=0.5,
+            max_tokens=300,
             top_p=1,
             stop=None)
         return response.choices[0].message.content
@@ -179,11 +220,11 @@ class Game:
         if success == True:
             protagonist.attack(enemy)
             print(
-                "\n\nYour cast was successful!, you dealt damage to the enemy his hp is now: ", enemy.hp,"\n\n")
+                "\n\nYour cast was successful!, you dealt damage to the enemy his hp is now: ", enemy.hp, "\n\n")
         else:
             enemy.attack(protagonist)
             print(
-                "\n\nYour cast was unsuccessful!, the enemy dealt damage to you, your hp is now: ", protagonist.hp,"\n\n")
+                "\n\nYour cast was unsuccessful!, the enemy dealt damage to you, your hp is now: ", protagonist.hp, "\n\n")
 
 
 class Level:
@@ -204,10 +245,7 @@ class Level:
             "VBP": "Present simple",
             "VBZ": "3rd person present simple"
         }
-        self.prompt_first_round = "Your role is : Stephen King \n Instructions: Introduce the area where an enemy finds the protagonist and challenges the protagonist to a Batlle. After describing the and introducing the area, you must tell him a phrase and he has to conjugate it in other tense. Example 'Original Phrase: You go to the store'. It must be introduced as the example i give you. You have to use the verb {verb_chosen} and the formal verb that the protagonist has to conjugate is {form_chosen}."
-        self.prompt_second_rounds = "Your role is : Stephen King\n Now you have to keep the dialogue with the protagonist. \b The verb that you have to use for the phrase is {verb_chosen} and the formal verb that the protagonist has to conjugate is {form_chosen}. The phrase to conjugate must go after the message 'Original phrase:'"
-        self.formated_prompt_first_round = None
-        self.formated_prompt_second_round = None
+        self.prompt = "Generate a simple phrase with subject, verb, and complement using the verb: {verb_chosen}"
 
     def choose_tense_and_verb(self):
         self.verb_chosen = random.choice(self.verbs_most_used)
@@ -220,51 +258,51 @@ class Level:
 
     def play(self):
         self.choose_tense_and_verb()
-        self.formated_prompt_first_round = self.prompt_first_round.format(
+        self.formated_prompt = self.prompt.format(
             verb_chosen=self.verb_chosen, form_chosen=self.form_chosen)
-        gpt_msg = self.game.api_gpt_call(self.prompt_first_round, tokens=300)
-        print("\n\n",gpt_msg,"\n\n")
-        original_phrase = self.text_analyzer.extract_original_phrase(gpt_msg)
-        input_text = input("\n\nEnter your phrase: \n\n")
+        gpt_msg = self.game.api_gpt_call_area()
+        print("\n\n", gpt_msg, "\n\n")
+        gpt_msg = self.game.api_gpt_call_phrase(self.formated_prompt)
+        print("\n\n", gpt_msg)
+        print("\n\nYou have to conjugate the phrase in the following form: ",
+            self.form_chosen, "\n\n")
+        input_text = input("\n\nEnter your phrase:")
         success = self.text_analyzer.check_tense(
-            input_text, self.verb_chosen, self.chosen_form_nlp, original_phrase, self.form_chosen)
+            self.verb_chosen, self.chosen_form_nlp, input_text, gpt_msg, self.form_chosen)
         if success == True:
             self.achievements.increase_streak()
         else:
             self.achievements.reset_streak()
         self.game.combat(success, self.protagonist, self.enemy)
-        self.achievements.check_achievements()
 
         while self.enemy.hp > 0 and self.protagonist.hp > 0:
             self.choose_tense_and_verb()
-            self.formated_prompt_second_rounds = self.prompt_second_rounds.format(
-                formated_prompt_first_round=self.formated_prompt_first_round, gpt_msg=gpt_msg, verb_chosen=self.verb_chosen, form_chosen=self.form_chosen)
-            gpt_msg = self.game.api_gpt_call(
-                self.formated_prompt_second_rounds, tokens=300)
-            print("\n\n",gpt_msg,"\n\n")
-            original_phrase = self.text_analyzer.extract_original_phrase(
-                gpt_msg)
-            input_text = input("\n\nEnter your phrase: \n\n")
+            self.formated_prompt = self.prompt.format(
+                verb_chosen=self.verb_chosen, form_chosen=self.form_chosen)
+            gpt_msg = self.game.api_gpt_call_phrase(self.formated_prompt)
+            print("\n\n", gpt_msg)
+            print("\n\nYou have to conjugate the phrase in the following form: ",
+                self.form_chosen, "\n\n")
+            input_text = input("\n\nEnter your phrase:")
             success = self.text_analyzer.check_tense(
-                input_text, self.verb_chosen, self.chosen_form_nlp, original_phrase, self.form_chosen)
+                self.verb_chosen, self.chosen_form_nlp, input_text, gpt_msg, self.form_chosen)
             if success == True:
                 self.achievements.increase_streak()
             else:
                 self.achievements.reset_streak()
-            self.achievements.check_achievements()
             self.game.combat(success, self.protagonist, self.enemy)
-        if self.enemy.hp == 0:
+        if self.enemy.hp <= 0:
             print("\n\nYou defeated the enemy\n\n")
         else:
             print("\n\nYou lost the battle\n\n")
 
 
 def main():
-    protagonist_name = input("\n\nEnter your name: \n\n")
+    protagonist_name = input("\n\nEnter your name: ")
     protagonist = Protagonist(protagonist_name)
     achievements = Achievements(protagonist)
     for level_number in range(1, 6):
-        level = Level(protagonist, level_number,achievements)
+        level = Level(protagonist, level_number, achievements)
         level.play()
 
 
